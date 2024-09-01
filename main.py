@@ -3,28 +3,12 @@ import sv_ttk
 from tkinter import *
 from tkinter import ttk
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+def login_button_click():
+    
 
 def clear_default_text(event):
     if login_entry.get() == "Username":
         login_entry.delete(0, END)
-
 def clear_password_text(event):
     if password_entry.get() == "23423":
         password_entry.delete(0, END)
@@ -36,30 +20,38 @@ root.geometry("600x250")  # Set the window size
 
 mainframe = ttk.Frame(root)  # Specify the root as the parent for mainframe
 
-# First Row
+
+# Login label and formatting
 loginLabel = ttk.Label(mainframe, text="Login", font=("Arial", 15))
 loginLabel.grid(row=0, column=1, pady=10)
 
+# Login entry space and formatting
 login_entry = ttk.Entry(mainframe, exportselection=0, width=30, font=("Arial", 15))
-login_entry.grid(row=1, column=1, padx=10)  # Decreased pady to 2
-login_entry.insert(0, "Username")  # Set default text
-login_entry.bind("<FocusIn>", clear_default_text)  # Bind the function to the FocusIn event
+login_entry.grid(row=1, column=1, padx=10)  
+login_entry.insert(0, "Username")  
+login_entry.bind("<FocusIn>", clear_default_text) 
 
+# Password entry space and formatting
 password_entry = ttk.Entry(mainframe, show="*", exportselection=0, width=30, font=("Arial", 15))
 password_entry.grid(row=2, column=1, pady=10, padx=10)
-password_entry.insert(0, "23423")  # Set default text
-password_entry.bind("<FocusIn>", clear_password_text)  # Bind the function to the FocusIn event
+password_entry.insert(0, "23423") 
+password_entry.bind("<FocusIn>", clear_password_text) 
 
-# Set transparency
+#Login button
+try_login_button = ttk.Button(mainframe, text="Login", command=login_button_click)
+try_login_button.grid(row=3, column=1, pady=10)
+# Set transparency for insert text
 login_entry.configure(foreground="gray50")
 login_entry.configure(foreground="gray50")
 
 # Center the mainframe in the window
 mainframe.place(relx=0.5, rely=0.5, anchor=CENTER)
 
+#Sets the theme
 sv_ttk.set_theme("dark")
 
-button = ttk.Button(mainframe, text="Toggle theme", command=sv_ttk.toggle_theme)
-button.grid(row=3, column=0, columnspan=2, padx=10, pady=10)
+# Button to toggle the theme
+button = ttk.Button(root, text="Toggle theme", command=sv_ttk.toggle_theme)
+button.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
 
 root.mainloop()
