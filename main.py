@@ -2,9 +2,14 @@ import tkinter
 import sv_ttk
 from tkinter import *
 from tkinter import ttk
+from selenium import webdriver
+
+cService = webdriver.ChromeService(executable_path="E:\\chromedriver-win64\\chromedriver.exe")
+
 
 def login_button_click():
-    
+    driver = webdriver.Chrome(service = cService)
+    driver.get("https://funpay.com/en/account/login")   
 
 def clear_default_text(event):
     if login_entry.get() == "Username":
