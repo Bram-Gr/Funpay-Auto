@@ -11,22 +11,25 @@ cService = webdriver.ChromeService(executable_path="E:\\chromedriver-win64\\chro
 
 
 def login_button_click():
+
     driver = webdriver.Chrome(service = cService)
     driver.get("https://funpay.com/en/account/login")
     try:
+        #Disable typing in the entry fields
+        mainframe.place_forget()
+
+        instructions.grid(row=0, column=1, pady=10)
+        sleep(5)
+        
         #Wait for the login page to load
 
-        WebDriverWait(driver,10).until(
-            EC.presence_of_element_located(By.NAME, "password")
+        login_input = WebDriverWait(driver,10).until(
+            EC.presence_of_element_located((By.NAME, "login"))
         )
-
-        #Find the login and password input fields
-
-        login_input = driver.find_element(By.NAME, "login")
-        passwrod_input = driver.find_element(By.NAME, "password")
-
+        passwrod_input = WebDriverWait(driver,10).until(
+            EC.presence_of_element_located((By.NAME,"password"))
+        )
         #Enter the login and password
-
         login_input.send_keys(login_entry.get())
         passwrod_input.send_keys(password_entry.get())
 
@@ -36,7 +39,19 @@ def login_button_click():
 
 
 
+
+
+
+
+
+
+
+
+
+
+
 def clear_default_text(event):
+    
     if login_entry.get() == "Username":
         login_entry.delete(0, END)
 def clear_password_text(event):
@@ -44,11 +59,18 @@ def clear_password_text(event):
         password_entry.delete(0, END)
 
 root = tkinter.Tk() 
-root.title("Funpay Automation")  # Set the window title
+root.title("Funpay Automation") 
 
-root.geometry("600x250")  # Set the window size
+root.geometry("600x250")  
 
-mainframe = ttk.Frame(root)  # Specify the root as the parent for mainframe
+#Main frame for the login page
+mainframe = ttk.Frame(root)  
+
+#Frame after login was pressed
+afterloginframe = ttk.Frame(root)
+
+afterloginframe.place(relx=0.5, rely=0.5, anchor=CENTER)
+instructions = ttk.Label(afterloginframe, text="Please complete the captcha and log in", font=("Arial", 15))
 
 
 # Login label and formatting
