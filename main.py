@@ -24,11 +24,14 @@ def login_button_click():
 
         login_input = driver.find_element(By.NAME, "login")
         passwrod_input = driver.find_element(By.NAME, "password")
-        
+
         #Enter the login and password
 
         login_input.send_keys(login_entry.get())
         passwrod_input.send_keys(password_entry.get())
+
+    except Exception as e:
+        print(e)
 
 
 
