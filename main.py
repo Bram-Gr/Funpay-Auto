@@ -3,13 +3,35 @@ import sv_ttk
 from tkinter import *
 from tkinter import ttk
 from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 cService = webdriver.ChromeService(executable_path="E:\\chromedriver-win64\\chromedriver.exe")
 
 
 def login_button_click():
     driver = webdriver.Chrome(service = cService)
-    driver.get("https://funpay.com/en/account/login")   
+    driver.get("https://funpay.com/en/account/login")
+    try:
+        #Wait for the login page to load
+
+        WebDriverWait(driver,10).until(
+            EC.presence_of_element_located(By.NAME, "password")
+        )
+
+        #Find the login and password input fields
+
+        login_input = driver.find_element(By.NAME, "login")
+        passwrod_input = driver.find_element(By.NAME, "password")
+        
+        #Enter the login and password
+
+        login_input.send_keys(login_entry.get())
+        passwrod_input.send_keys(password_entry.get())
+
+
+
 
 def clear_default_text(event):
     if login_entry.get() == "Username":
