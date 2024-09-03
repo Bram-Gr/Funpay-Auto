@@ -6,6 +6,8 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import pickle
+from time import sleep
 
 cService = webdriver.ChromeService(executable_path="E:\\chromedriver-win64\\chromedriver.exe")
 
@@ -45,14 +47,15 @@ def check_logged_in():
     global driver
 
     try:
-        #Wait for the login page to load
+        #Wait for the main page to load and find element
         WebDriverWait(driver,10).until(
             EC.presence_of_element_located((By.CLASS_NAME, "user-link-name"))
         )
-        #If the user is logged in, show the frame with the message
+        #If the user is logged in, show the frame with the message and load cookies
+        save_cookies(driver)
         instructionsframe.place_forget()
         frame3.place(relx=0.5, rely=0.5, anchor=CENTER)
-        sleep(2)
+        
         frame3.place_forget()
         frame4.place(relx=0.5, rely=0.5, anchor=CENTER)
         
@@ -68,6 +71,22 @@ def load_existing_offers():
 def accounts_section_button_click():
     frame4.place_forget()
     frame5.place(relx=0.5, rely=0.5, anchor=CENTER)
+
+def save_cookies(driver, path='cookies.pkl'):
+    with open(path, 'wb') as filehandler:
+        pickle.dump(driver.get_cookies(), filehandler)
+
+def load_cookies(driver, path='cookies.pkl'):
+    with open(path, 'rb') as cookiesfile:
+        cookies = pickle.load(cookiesfile)
+        for cookie in cookies:
+            driver.add_cookie(cookie)
+
+
+
+
+
+
 
 
 
