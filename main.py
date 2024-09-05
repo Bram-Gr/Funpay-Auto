@@ -15,53 +15,45 @@ driver = None
 
 def login_button_click():
     global driver
-
-    driver = webdriver.Chrome(service = cService)
-    driver.get("https://funpay.com/en/account/login")
-
-    try:
-        #Disable typing in the entry fields
+    driver = webdriver.Chrome(service=cService)
+    driver.get("https://funpay.com/en/")
+    load_cookies(driver)
+    if check_logged_in == True:
         mainframe.place_forget()
+        frame4.place(relx=0.5, rely=0.5, anchor=CENTER)
+    else:
+        driver.get("https://funpay.com/en/account/login")
+        try:
+            #Disable typing in the entry fields
+            mainframe.place_forget()
 
-        instructionsframe.place(relx=0.5, rely=0.5, anchor=CENTER)
-        
-        #Wait for the login page to load
+            instructionsframe.place(relx=0.5, rely=0.5, anchor=CENTER)
+            
+            #Wait for the login page to load
 
-        login_input = WebDriverWait(driver,10).until(
-            EC.presence_of_element_located((By.NAME, "login"))
-        )
-        passwrod_input = WebDriverWait(driver,10).until(
-            EC.presence_of_element_located((By.NAME,"password"))
-        )
-        #Enter the login and password
-        login_input.send_keys(login_entry.get())
-        passwrod_input.send_keys(password_entry.get())
+            login_input = WebDriverWait(driver,5).until(
+                EC.presence_of_element_located((By.NAME, "login"))
+            )
+            passwrod_input = WebDriverWait(driver,5).until(
+                EC.presence_of_element_located((By.NAME,"password"))
+            )
+            #Enter the login and password
+            login_input.send_keys(login_entry.get())
+            passwrod_input.send_keys(password_entry.get())
 
-    except Exception as e:
-        print(e)
+        except Exception as e:
+            print(e)
 
 
-
-# Button to check if logged in
 def check_logged_in():
-    global driver
-
     try:
-        #Wait for the main page to load and find element
-        WebDriverWait(driver,10).until(
+        WebDriverWait(driver, 5).until(
             EC.presence_of_element_located((By.CLASS_NAME, "user-link-name"))
         )
-        #If the user is logged in, show the frame with the message and load cookies
-        save_cookies(driver)
-        instructionsframe.place_forget()
-        frame3.place(relx=0.5, rely=0.5, anchor=CENTER)
-        
-        frame3.place_forget()
-        frame4.place(relx=0.5, rely=0.5, anchor=CENTER)
-        
+        return True
+    except:
+        return False 
 
-    except Exception as e:
-        print(e)
 
 def load_existing_offers():
     global driver
@@ -82,6 +74,24 @@ def load_cookies(driver, path='cookies.pkl'):
         for cookie in cookies:
             driver.add_cookie(cookie)
 
+def successful_login_button():
+    global driver
+
+    try:
+        #Wait for the main page to load and find element
+        WebDriverWait(driver,5).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "user-link-name"))
+        )
+        driver.get("https://funpay.com/en/")
+        save_cookies(driver)
+        instructionsframe.place_forget()
+        frame3.place(relx=0.5, rely=0.5, anchor=CENTER)
+        
+        frame3.place_forget()
+        frame4.place(relx=0.5, rely=0.5, anchor=CENTER)
+        
+    except Exception as e:
+        print(e)
 
 
 
@@ -133,7 +143,7 @@ frame5_label.grid(row=0, column=2, pady=10)
 #Instructions label
 instructions = ttk.Label(instructionsframe, text="Please complete the captcha and log in", font=("Arial", 15))
 instructions.grid(row=1, column=2, pady=10)
-check_logged_in_button = ttk.Button(instructionsframe, text="Check if logged in", command=check_logged_in)
+check_logged_in_button = ttk.Button(instructionsframe, text="Check if logged in", command=successful_login_button)
 check_logged_in_button.grid(row=2, column=2, pady=10)
 
 # Login label and formatting
@@ -146,6 +156,30 @@ login_entry.grid(row=1, column=1, padx=10)
 login_entry.insert(0, "grandcrabst")  
 login_entry.bind("<FocusIn>", clear_default_text) 
 
+#Remember me checkbox
+remember_me_var = tkinter.BooleanVar()
+remember_me = ttk.Checkbutton(mainframe, text="Remember me", variable=remember_me_var)
+remember_me.grid(row=4, column=1, pady=10)
+
+
+#Saves the checkbox state
+def save_remember_me_state(*args):
+    with open('remember_me_state.pkl', 'wb') as f:
+        pickle.dump(remember_me_var.get(), f)
+
+remember_me_var.trace_add('write', save_remember_me_state)
+#Loads the checkbox state
+def load_remember_me_state():
+    try:
+        with open('remember_me_state.pkl', 'rb') as f:
+            state = pickle.load(f)
+            remember_me_var.set(state)
+    except FileNotFoundError:
+        remember_me_var.set(False)  # Default state if no file is found
+
+load_remember_me_state()
+
+
 # Password entry space and formatting
 password_entry = ttk.Entry(mainframe, show="*", exportselection=0, width=30, font=("Arial", 15))
 password_entry.grid(row=2, column=1, pady=10, padx=10)
@@ -153,7 +187,7 @@ password_entry.insert(0, "1234Az789")
 password_entry.bind("<FocusIn>", clear_password_text) 
 
 #Login button
-try_login_button = ttk.Button(mainframe, text="Login", command=login_button_click)
+try_login_button = ttk.Button(mainframe, text="Login", command=login_button_click, width=20)
 try_login_button.grid(row=3, column=1, pady=10)
 
 # Set transparency for insert text
