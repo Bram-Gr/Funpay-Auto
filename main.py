@@ -8,6 +8,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import pickle
 from time import sleep
+from bs4 import BeautifulSoup
 
 cService = webdriver.ChromeService(executable_path="E:\\chromedriver-win64\\chromedriver.exe")
 
@@ -18,7 +19,10 @@ def login_button_click():
     driver = webdriver.Chrome(service=cService)
     driver.get("https://funpay.com/en/")
     load_cookies(driver)
-    if check_logged_in == True:
+    driver.get("https://funpay.com/en/")
+    a = check_logged_in()
+    print(a)
+    if a == True:
         mainframe.place_forget()
         frame4.place(relx=0.5, rely=0.5, anchor=CENTER)
     else:
@@ -55,14 +59,42 @@ def check_logged_in():
         return False 
 
 
+
+
 def load_existing_offers():
     global driver
     driver.get("https://funpay.com/en/lots/612/trade")
+    
+    # Wait for the page to load (if necessary)
+    sleep(3)  # or you can use WebDriverWait if you prefer more control
+    
+    # Extract page source
+    page_source = driver.page_source
+    
+    # Use BeautifulSoup to parse the page content
+    soup = BeautifulSoup(page_source, 'html.parser')
+    
+    # Find all the offer links (<a href="https://funpay.com/en/lots/offerEdit?node=612&offer=)
+    offer_links = soup.find_all('a', href=True)
+    total_offers = len([link for link in offer_links if "https://funpay.com/en/lots/offerEdit?node=612&offer=" in link['href']])
+    
+    # Find all offers with stock (class tc-amount hidden-xxs that are > 0)
+    active_offers = len([offer for offer in soup.find_all(class_='tc-amount hidden-xxs') if int(offer.get_text(strip=True)) > 0])
+    
+    # Calculate inactive offers
+    inactive_offers = total_offers - active_offers
+    
+    # Print or display the results in your UI
+    print(f"Total Offers: {total_offers}, Active: {active_offers}, Inactive: {inactive_offers}")
+    
+    # You can update a label in the UI to show this information
+    accounts_frameX_label.config(text=f"Total Offers: {total_offers}, Active: {active_offers}, Inactive: {inactive_offers}")
+
 
 
 def accounts_section_button_click():
     frame4.place_forget()
-    frame5.place(relx=0.5, rely=0.5, anchor=CENTER)
+    accounts_frameX.place(relx=0.5, rely=0.5, anchor=CENTER)
 
 def save_cookies(driver, path='cookies.pkl'):
     with open(path, 'wb') as filehandler:
@@ -132,13 +164,13 @@ login_successful_label.grid(row=0, column=2, pady=10)
 
 #Frame 4  
 frame4 = ttk.Frame(root)
-accounts_section_button = ttk.Button(frame4, text="Load existing offers", command=accounts_section_button_click)
+accounts_section_button = ttk.Button(frame4, text="Accounts", command=accounts_section_button_click)
 accounts_section_button.grid(row=0, column=2, pady=10)
 
 #Frame 5
-frame5 = ttk.Frame(root)
-frame5_label= ttk.Label(frame5, text="Accounts section under construction", font=("Arial", 15))
-frame5_label.grid(row=0, column=2, pady=10)
+accounts_frameX = ttk.Frame(root)
+accounts_frameX_label= ttk.Button(accounts_frameX, text="Load Existing Offers", command=load_existing_offers)
+accounts_frameX_label.grid(row=0, column=2, pady=10)
 
 #Instructions label
 instructions = ttk.Label(instructionsframe, text="Please complete the captcha and log in", font=("Arial", 15))
