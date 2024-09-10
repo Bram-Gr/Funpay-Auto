@@ -9,11 +9,123 @@ from selenium.webdriver.support import expected_conditions as EC
 import pickle
 from time import sleep
 from bs4 import BeautifulSoup
+import csv
+import os
 
+# Selenium setup
 cService = webdriver.ChromeService(executable_path="E:\\chromedriver-win64\\chromedriver.exe")
-
 driver = None
 
+# File to store account-email associations
+csv_file = "accounts_emails.csv"
+
+# In-memory storage for account-email associations (loaded from CSV)
+accounts_to_emails = {}
+
+# Load existing account-email associations from CSV
+def load_accounts_from_csv():
+    global accounts_to_emails
+    if os.path.exists(csv_file):
+        with open(csv_file, mode='r') as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                accounts_to_emails[row['account_code']] = {
+                    'website': row['website'],
+                    'login': row['login'],
+                    'password': row['password']
+                }
+
+# Save account-email associations to CSV
+def save_accounts_to_csv():
+    with open(csv_file, mode='w', newline='') as file:
+        fieldnames = ['account_code', 'website', 'login', 'password']
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+        for account_code, email_data in accounts_to_emails.items():
+            writer.writerow({
+                'account_code': account_code,
+                'website': email_data['website'],
+                'login': email_data['login'],
+                'password': email_data['password']
+            })
+
+# Call this function after associating an email
+def associate_email(website, login, password, account_code):
+    accounts_to_emails[account_code] = {
+        'website': website,
+        'login': login,
+        'password': password
+    }
+    print(f"Associated {login} with account {account_code}")
+    save_accounts_to_csv()  # Save to CSV after association
+
+# Show the email association form with pre-filled data if available
+def show_email_association_form(account_code):
+    email_window = Toplevel(root)
+    email_window.title(f"Associate Email for Account {account_code}")
+
+    existing_data = accounts_to_emails.get(account_code, {})
+    
+    Label(email_window, text="Email Website:").grid(row=0, column=0, padx=5, pady=5)
+    email_website = Entry(email_window)
+    email_website.grid(row=0, column=1, padx=5, pady=5)
+    email_website.insert(0, existing_data.get('website', ''))  # Pre-fill if available
+
+    Label(email_window, text="Email Login:").grid(row=1, column=0, padx=5, pady=5)
+    email_login = Entry(email_window)
+    email_login.grid(row=1, column=1, padx=5, pady=5)
+    email_login.insert(0, existing_data.get('login', ''))  # Pre-fill if available
+
+    Label(email_window, text="Email Password:").grid(row=2, column=0, padx=5, pady=5)
+    email_password = Entry(email_window, show="*")
+    email_password.grid(row=2, column=1, padx=5, pady=5)
+    email_password.insert(0, existing_data.get('password', ''))  # Pre-fill if available
+
+    associate_btn = ttk.Button(email_window, text="Associate", command=lambda: associate_email(
+        email_website.get(), email_login.get(), email_password.get(), account_code))
+    associate_btn.grid(row=3, column=0, columnspan=2, pady=10)
+
+# Extract account code from description text (between [ and ])
+def extract_account_code(desc_text):
+    start = desc_text.find('[') + 1
+    end = desc_text.find(']')
+    return desc_text[start:end]
+
+# Open the offer in the browser and show email association form
+def open_offer_in_browser(link, desc_text):
+    account_code = extract_account_code(desc_text)
+    print(f"Opening offer with account code: {account_code}")
+    driver.get(link)
+    show_email_association_form(account_code)
+
+# Load existing offers from the website
+def load_existing_offers():
+    global driver
+    driver.get("https://funpay.com/en/lots/612/trade")
+    sleep(3)  # Wait for the page to load
+    page_source = driver.page_source
+    soup = BeautifulSoup(page_source, 'html.parser')
+    
+    inactive_offers = []
+    
+    # Find inactive offers (those with amount = 0)
+    for offer in soup.find_all('a', href=True, class_="tc-item"):
+        offer_amount = offer.find(class_='tc-amount hidden-xxs').get_text(strip=True)
+        if int(offer_amount) == 0:
+            desc_text = offer.find(class_="tc-desc-text").get_text(strip=True)[:30]  # Get first 30 characters
+            offer_link = offer['href']
+            inactive_offers.append((desc_text, offer_link))
+    
+    # Clear previous content in the frame
+    for widget in accounts_frameX.winfo_children():
+        widget.destroy()
+    
+    # Create buttons for each inactive offer
+    for desc_text, link in inactive_offers[:30]:  # Show only first 30 offers
+        btn = ttk.Button(accounts_frameX, text=desc_text, command=lambda url=link, desc=desc_text: open_offer_in_browser(url, desc))
+        btn.pack(pady=2)
+
+# Start Selenium and handle login
 def login_button_click():
     global driver
     driver = webdriver.Chrome(service=cService)
@@ -21,33 +133,25 @@ def login_button_click():
     load_cookies(driver)
     driver.get("https://funpay.com/en/")
     a = check_logged_in()
-    print(a)
     if a == True:
         mainframe.place_forget()
         frame4.place(relx=0.5, rely=0.5, anchor=CENTER)
     else:
         driver.get("https://funpay.com/en/account/login")
         try:
-            #Disable typing in the entry fields
             mainframe.place_forget()
-
             instructionsframe.place(relx=0.5, rely=0.5, anchor=CENTER)
             
-            #Wait for the login page to load
-
             login_input = WebDriverWait(driver,5).until(
                 EC.presence_of_element_located((By.NAME, "login"))
             )
             passwrod_input = WebDriverWait(driver,5).until(
                 EC.presence_of_element_located((By.NAME,"password"))
             )
-            #Enter the login and password
             login_input.send_keys(login_entry.get())
             passwrod_input.send_keys(password_entry.get())
-
         except Exception as e:
             print(e)
-
 
 def check_logged_in():
     try:
@@ -58,59 +162,27 @@ def check_logged_in():
     except:
         return False 
 
-
-
-
-def load_existing_offers():
-    global driver
-    driver.get("https://funpay.com/en/lots/612/trade")
-    
-    # Wait for the page to load (if necessary)
-    sleep(3)  # or you can use WebDriverWait if you prefer more control
-    
-    # Extract page source
-    page_source = driver.page_source
-    
-    # Use BeautifulSoup to parse the page content
-    soup = BeautifulSoup(page_source, 'html.parser')
-    
-    # Find all the offer links (<a href="https://funpay.com/en/lots/offerEdit?node=612&offer=)
-    offer_links = soup.find_all('a', href=True)
-    total_offers = len([link for link in offer_links if "https://funpay.com/en/lots/offerEdit?node=612&offer=" in link['href']])
-    
-    # Find all offers with stock (class tc-amount hidden-xxs that are > 0)
-    active_offers = len([offer for offer in soup.find_all(class_='tc-amount hidden-xxs') if int(offer.get_text(strip=True)) > 0])
-    
-    # Calculate inactive offers
-    inactive_offers = total_offers - active_offers
-    
-    # Print or display the results in your UI
-    print(f"Total Offers: {total_offers}, Active: {active_offers}, Inactive: {inactive_offers}")
-    
-    # You can update a label in the UI to show this information
-    accounts_frameX_label.config(text=f"Total Offers: {total_offers}, Active: {active_offers}, Inactive: {inactive_offers}")
-
-
-
+# Switch to the accounts section
 def accounts_section_button_click():
     frame4.place_forget()
     accounts_frameX.place(relx=0.5, rely=0.5, anchor=CENTER)
 
+# Save cookies to a file
 def save_cookies(driver, path='cookies.pkl'):
     with open(path, 'wb') as filehandler:
         pickle.dump(driver.get_cookies(), filehandler)
 
+# Load cookies from a file
 def load_cookies(driver, path='cookies.pkl'):
     with open(path, 'rb') as cookiesfile:
         cookies = pickle.load(cookiesfile)
         for cookie in cookies:
             driver.add_cookie(cookie)
 
+# Login successful handler
 def successful_login_button():
     global driver
-
     try:
-        #Wait for the main page to load and find element
         WebDriverWait(driver,5).until(
             EC.presence_of_element_located((By.CLASS_NAME, "user-link-name"))
         )
@@ -118,122 +190,67 @@ def successful_login_button():
         save_cookies(driver)
         instructionsframe.place_forget()
         frame3.place(relx=0.5, rely=0.5, anchor=CENTER)
-        
         frame3.place_forget()
         frame4.place(relx=0.5, rely=0.5, anchor=CENTER)
-        
     except Exception as e:
         print(e)
 
-
-
-
-
-
-
-
-
-
-
-
+# Clear default text in login entry
 def clear_default_text(event):
-    
     if login_entry.get() == "Username":
         login_entry.delete(0, END)
+
 def clear_password_text(event):
     if password_entry.get() == "23423":
         password_entry.delete(0, END)
 
 root = tkinter.Tk() 
 root.title("Funpay Automation") 
-
 root.geometry("600x250")  
 
-#Main frame for the login page
+# Main frame for the login page
 mainframe = ttk.Frame(root)  
 
-
-
-#Frame after login was pressed
+# Frame after login was pressed
 instructionsframe = ttk.Frame(root)
 
-#Frame after login was successful
+# Frame after login was successful
 frame3 = ttk.Frame(root)
 login_successful_label = ttk.Label(frame3, text="Login successful!", font=("Arial", 15))
 login_successful_label.grid(row=0, column=2, pady=10)
 
-#Frame 4  
+# Frame 4  
 frame4 = ttk.Frame(root)
 accounts_section_button = ttk.Button(frame4, text="Accounts", command=accounts_section_button_click)
 accounts_section_button.grid(row=0, column=2, pady=10)
 
-#Frame 5
+# Frame 5
 accounts_frameX = ttk.Frame(root)
 accounts_frameX_label= ttk.Button(accounts_frameX, text="Load Existing Offers", command=load_existing_offers)
 accounts_frameX_label.grid(row=0, column=2, pady=10)
 
-#Instructions label
-instructions = ttk.Label(instructionsframe, text="Please complete the captcha and log in", font=("Arial", 15))
-instructions.grid(row=1, column=2, pady=10)
-check_logged_in_button = ttk.Button(instructionsframe, text="Check if logged in", command=successful_login_button)
-check_logged_in_button.grid(row=2, column=2, pady=10)
+# Instructions label
+instructions = ttk.Label(instructionsframe, text="Please complete the captcha manually", font=("Arial", 15))
+instructions.grid(row=0, column=2, pady=10)
 
-# Login label and formatting
-loginLabel = ttk.Label(mainframe, text="Login", font=("Arial", 15))
-loginLabel.grid(row=0, column=1, pady=10)
+# Username and password entries
+login_entry = ttk.Entry(mainframe)
+login_entry.insert(0, "Username")
+login_entry.bind("<FocusIn>", clear_default_text)
+login_entry.grid(row=1, column=2, padx=5, pady=5)
 
-# Login entry space and formatting
-login_entry = ttk.Entry(mainframe, exportselection=0, width=30, font=("Arial", 15))
-login_entry.grid(row=1, column=1, padx=10)  
-login_entry.insert(0, "grandcrabst")  
-login_entry.bind("<FocusIn>", clear_default_text) 
+password_entry = ttk.Entry(mainframe, show="*")
+password_entry.insert(0, "23423")
+password_entry.bind("<FocusIn>", clear_password_text)
+password_entry.grid(row=2, column=2, padx=5, pady=5)
 
-#Remember me checkbox
-remember_me_var = tkinter.BooleanVar()
-remember_me = ttk.Checkbutton(mainframe, text="Remember me", variable=remember_me_var)
-remember_me.grid(row=4, column=1, pady=10)
+# Login button
+login_button = ttk.Button(mainframe, text="Login", command=login_button_click)
+login_button.grid(row=3, column=2, pady=10)
 
-
-#Saves the checkbox state
-def save_remember_me_state(*args):
-    with open('remember_me_state.pkl', 'wb') as f:
-        pickle.dump(remember_me_var.get(), f)
-
-remember_me_var.trace_add('write', save_remember_me_state)
-#Loads the checkbox state
-def load_remember_me_state():
-    try:
-        with open('remember_me_state.pkl', 'rb') as f:
-            state = pickle.load(f)
-            remember_me_var.set(state)
-    except FileNotFoundError:
-        remember_me_var.set(False)  # Default state if no file is found
-
-load_remember_me_state()
-
-
-# Password entry space and formatting
-password_entry = ttk.Entry(mainframe, show="*", exportselection=0, width=30, font=("Arial", 15))
-password_entry.grid(row=2, column=1, pady=10, padx=10)
-password_entry.insert(0, "1234Az789") 
-password_entry.bind("<FocusIn>", clear_password_text) 
-
-#Login button
-try_login_button = ttk.Button(mainframe, text="Login", command=login_button_click, width=20)
-try_login_button.grid(row=3, column=1, pady=10)
-
-# Set transparency for insert text
-login_entry.configure(foreground="gray50")
-login_entry.configure(foreground="gray50")
-
-# Center the mainframe in the window
+sv_ttk.set_theme("dark")
 mainframe.place(relx=0.5, rely=0.5, anchor=CENTER)
 
-#Sets the theme
-sv_ttk.set_theme("dark")
-
-# Button to toggle the theme
-button = ttk.Button(root, text="Toggle theme", command=sv_ttk.toggle_theme)
-button.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
+load_accounts_from_csv()  # Load accounts from CSV on startup
 
 root.mainloop()
