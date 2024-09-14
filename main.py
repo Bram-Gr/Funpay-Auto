@@ -22,6 +22,11 @@ csv_file = "accounts_emails.csv"
 # In-memory storage for account-email associations (loaded from CSV)
 accounts_to_emails = {}
 
+
+
+
+
+
 # Load existing account-email associations from CSV
 def load_accounts_from_csv():
     global accounts_to_emails
@@ -32,13 +37,16 @@ def load_accounts_from_csv():
                 accounts_to_emails[row['account_code']] = {
                     'website': row['website'],
                     'login': row['login'],
-                    'password': row['password']
+                    'password': row['password'],
+                    'account_login': row.get('account_login', ''),  # New field with default empty string if missing
+                    'current_password': row.get('current_password', '')  # New field with default empty string if missing
                 }
+
 
 # Save account-email associations to CSV
 def save_accounts_to_csv():
     with open(csv_file, mode='w', newline='') as file:
-        fieldnames = ['account_code', 'website', 'login', 'password']
+        fieldnames = ['account_code', 'website', 'login', 'password', 'account_login', 'current_password']  # Updated fieldnames
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         for account_code, email_data in accounts_to_emails.items():
@@ -46,44 +54,80 @@ def save_accounts_to_csv():
                 'account_code': account_code,
                 'website': email_data['website'],
                 'login': email_data['login'],
-                'password': email_data['password']
+                'password': email_data['password'],
+                'account_login': email_data.get('account_login', ''),  # New field with default empty string if missing
+                'current_password': email_data.get('current_password', '')  # New field with default empty string if missing
             })
 
-# Call this function after associating an email
-def associate_email(website, login, password, account_code):
+
+# Call this function after associating an email and account info
+def associate_email(website, login, password, account_code, account_login, current_password):
     accounts_to_emails[account_code] = {
         'website': website,
         'login': login,
-        'password': password
+        'password': password,
+        'account_login': account_login,  # Storing new account login
+        'current_password': current_password  # Storing new current password
     }
     print(f"Associated {login} with account {account_code}")
     save_accounts_to_csv()  # Save to CSV after association
 
-# Show the email association form with pre-filled data if available
+# Show the account information form with pre-filled data if available
+# Show the account information form with pre-filled data if available
+# Show the account information form with pre-filled data if available
 def show_email_association_form(account_code):
     email_window = Toplevel(root)
-    email_window.title(f"Associate Email for Account {account_code}")
+    email_window.title(f"{account_code} Account Info")
 
+    # Retrieve existing data for the account if available
     existing_data = accounts_to_emails.get(account_code, {})
-    
-    Label(email_window, text="Email Website:").grid(row=0, column=0, padx=5, pady=5)
-    email_website = Entry(email_window)
+
+    # Email-related fields
+    ttk.Label(email_window, text="Email Website:").grid(row=0, column=0, padx=5, pady=5)
+    email_website = ttk.Entry(email_window, width=30, font=("Arial", 10))
     email_website.grid(row=0, column=1, padx=5, pady=5)
     email_website.insert(0, existing_data.get('website', ''))  # Pre-fill if available
 
-    Label(email_window, text="Email Login:").grid(row=1, column=0, padx=5, pady=5)
-    email_login = Entry(email_window)
+    ttk.Label(email_window, text="Email Login:").grid(row=1, column=0, padx=5, pady=5)
+    email_login = ttk.Entry(email_window, width=30, font=("Arial", 10))
     email_login.grid(row=1, column=1, padx=5, pady=5)
     email_login.insert(0, existing_data.get('login', ''))  # Pre-fill if available
 
-    Label(email_window, text="Email Password:").grid(row=2, column=0, padx=5, pady=5)
-    email_password = Entry(email_window, show="*")
+    ttk.Label(email_window, text="Email Password:").grid(row=2, column=0, padx=5, pady=5)
+    email_password = ttk.Entry(email_window, show="*", width=30, font=("Arial", 10))
     email_password.grid(row=2, column=1, padx=5, pady=5)
     email_password.insert(0, existing_data.get('password', ''))  # Pre-fill if available
 
+    # New fields for Account Login and Current Password
+    ttk.Label(email_window, text="Account Login:").grid(row=3, column=0, padx=5, pady=5)
+    account_login = ttk.Entry(email_window, width=30, font=("Arial", 10))
+    account_login.grid(row=3, column=1, padx=5, pady=5)
+    account_login.insert(0, existing_data.get('account_login', ''))  # Corrected key to 'account_login'
+
+    ttk.Label(email_window, text="Current Password:").grid(row=4, column=0, padx=5, pady=5)
+    current_password = ttk.Entry(email_window, show="*", width=30, font=("Arial", 10))
+    current_password.grid(row=4, column=1, padx=5, pady=5)
+    current_password.insert(0, existing_data.get('current_password', ''))  # Corrected key to 'current_password'
+
+    # Function to toggle password visibility
+    def toggle_password_visibility():
+        if show_password_var.get():
+            email_password.config(show="")
+            current_password.config(show="")
+        else:
+            email_password.config(show="*")
+            current_password.config(show="*")
+
+    # Checkbox to show/hide passwords
+    show_password_var = BooleanVar()
+    show_password_checkbox = ttk.Checkbutton(email_window, text="Show Passwords", variable=show_password_var, command=toggle_password_visibility)
+    show_password_checkbox.grid(row=5, column=1, padx=5, pady=5)
+
+    # Associate button to save data
     associate_btn = ttk.Button(email_window, text="Associate", command=lambda: associate_email(
-        email_website.get(), email_login.get(), email_password.get(), account_code))
-    associate_btn.grid(row=3, column=0, columnspan=2, pady=10)
+        email_website.get(), email_login.get(), email_password.get(), account_code, account_login.get(), current_password.get()))
+    associate_btn.grid(row=6, column=0, columnspan=2, pady=10)
+
 
 # Extract account code from description text (between [ and ])
 def extract_account_code(desc_text):
