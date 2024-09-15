@@ -24,7 +24,24 @@ csv_file = "accounts_emails.csv"
 # In-memory storage for account-email associations (loaded from CSV)
 accounts_to_emails = {}
 
+import requests
 
+def get_firstmail_code(email, password):
+    api_url = f"https://api.firstmail.ltd/v1/market/get/message?username={email}&password={password}"
+
+    headers = {
+        "accept": "application/json",
+        "X-API-KEY": "c5816a11-b9eb-4325-91d4-94f3179a4ea3"
+    }
+
+    response = requests.get(api_url, headers=headers)
+    if response.status_code == 200:
+        data = response.json()
+        # Assuming the code is inside 'data' (adjust based on actual API response)
+        return data.get('code')
+    else:
+        print(f"Failed to retrieve the code. Status code: {response.status_code}")
+        return None
 
 
 
@@ -166,9 +183,30 @@ def show_email_association_form(account_code):
         except Exception as e:
             print(f"An error occurred: {e}")
 
-    def continue_change_password():
-        xczv
+    def continue_change_password(email, email_password):
+        global driver
+        
+        try:
+            # Press the settings button
+            settings_button = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, '[data-testid="riotbar:account:link-settings"]'))
+            )
+            driver.execute_script("arguments[0].click();", settings_button)
+            print("Clicked Settings button.")
 
+            # Retrieve the login code from the Firstmail API
+            login_code = get_firstmail_code(email, email_password)
+            if login_code:
+                print(f"Login code retrieved: {login_code}")
+                # You can use the login code to proceed with the next steps
+                # e.g., enter it into an input field and continue the password change process
+            else:
+                print("Failed to retrieve the login code.")
+
+        except TimeoutException:
+            print("Settings button not found within the time limit.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
     #Button for changing password
     ttk.Button(email_window, text="Change account password",command=change_account_password).grid(row=2, column=2, padx=5)
 
