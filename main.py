@@ -6,11 +6,13 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.keys import Keys
 import pickle
 from time import sleep
 from bs4 import BeautifulSoup
 import csv
 import os
+import undetected_chromedriver as uc
 
 # Selenium setup
 cService = webdriver.ChromeService(executable_path="E:\\chromedriver-win64\\chromedriver.exe")
@@ -21,7 +23,6 @@ csv_file = "accounts_emails.csv"
 
 # In-memory storage for account-email associations (loaded from CSV)
 accounts_to_emails = {}
-
 
 
 
@@ -102,12 +103,74 @@ def show_email_association_form(account_code):
     ttk.Label(email_window, text="Account Login:").grid(row=3, column=0, padx=5, pady=5)
     account_login = ttk.Entry(email_window, width=30, font=("Arial", 10))
     account_login.grid(row=3, column=1, padx=5, pady=5)
-    account_login.insert(0, existing_data.get('account_login', ''))  # Corrected key to 'account_login'
+    account_login.insert(0, existing_data.get('account_login', '')) 
 
     ttk.Label(email_window, text="Current Password:").grid(row=4, column=0, padx=5, pady=5)
     current_password = ttk.Entry(email_window, show="*", width=30, font=("Arial", 10))
     current_password.grid(row=4, column=1, padx=5, pady=5)
-    current_password.insert(0, existing_data.get('current_password', ''))  # Corrected key to 'current_password'
+    current_password.insert(0, existing_data.get('current_password', '')) 
+
+
+# Function that changes account password
+    def change_account_password():
+        global driver
+        driver.get("https://playvalorant.com/en-gb/")
+        
+        try:
+            # Step 1: Click the "PLAY NOW" button
+            play_now_button = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, '[data-riotbar-link-id="play-now"]'))
+            )
+            driver.execute_script("arguments[0].click();", play_now_button)
+            print("Clicked PLAY NOW button.")
+            
+            sleep(2)
+
+            # Step 2: Wait for and click the second "Sign In" button (assuming there are two)
+            sign_in_buttons = WebDriverWait(driver, 10).until(
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, '[data-testid="cta-primary"]'))
+            )
+            
+            if len(sign_in_buttons) >= 2:
+                # Click the second button (index 1)
+                driver.execute_script("arguments[0].click();", sign_in_buttons[1])
+                print("Clicked second SIGN IN button.")
+            else:
+                print("Could not find both sign-in buttons.")
+
+            # Step 3: Wait for the username input field and fill it with account login
+            username_element = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.NAME, "username"))
+            )
+            driver.execute_script("arguments[0].focus();", username_element)
+            username_element.send_keys(account_login.get())  # Replace with actual account login data
+
+            # Step 4: Wait for the password field and fill it with the current password
+            password_element = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.NAME, "password"))
+            )
+            driver.execute_script("arguments[0].focus();", password_element)
+            password_element.send_keys(current_password.get())  # Replace with actual password data
+            
+            # Submit the form or trigger login
+            password_element.send_keys(Keys.RETURN)
+
+            # Step 5: Pop up window with instructions for captcha
+            riotinstructions = Toplevel(root)
+            riotinstructions.title("Instructions")
+            ttk.Label(riotinstructions, text="Please complete the captcha manually and then press the button below").grid(row=0, column=0, padx=5, pady=5)
+            riotlogin_button = ttk.Button(riotinstructions, text="Captcha completed", command=continue_change_password).grid(row=1, column=1, padx=5, pady=5)
+
+        except TimeoutException:
+            print("Element not found within the time limit.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
+    def continue_change_password():
+        xczv
+
+    #Button for changing password
+    ttk.Button(email_window, text="Change account password",command=change_account_password).grid(row=2, column=2, padx=5)
 
     # Function to toggle password visibility
     def toggle_password_visibility():
@@ -169,14 +232,28 @@ def load_existing_offers():
         btn = ttk.Button(accounts_frameX, text=desc_text, command=lambda url=link, desc=desc_text: open_offer_in_browser(url, desc))
         btn.pack(pady=2)
 
-# Start Selenium and handle login
+# Start Selenium and handle login with default Chrome profile
 def login_button_click():
     global driver
-    driver = webdriver.Chrome(service=cService)
+    options = uc.ChromeOptions()
+    
+    # Set the path to your default Chrome profile
+    #options.add_argument("--user-data-dir=C:/Users/klp/AppData/Local/Google/Chrome/User Data")
+    #options.add_argument("--profile-directory=Default")  # Use "Profile X" if you have multiple profiles
+
+
+    # Initialize the undetected Chrome driver with options
+    driver = uc.Chrome(options=options)
+    
     driver.get("https://funpay.com/en/")
+    
+    # Load cookies if available
     load_cookies(driver)
+    
+    # Try navigating to the site again to check if logged in
     driver.get("https://funpay.com/en/")
     a = check_logged_in()
+    
     if a == True:
         mainframe.place_forget()
         frame4.place(relx=0.5, rely=0.5, anchor=CENTER)
@@ -186,14 +263,16 @@ def login_button_click():
             mainframe.place_forget()
             instructionsframe.place(relx=0.5, rely=0.5, anchor=CENTER)
             
-            login_input = WebDriverWait(driver,5).until(
+            login_input = WebDriverWait(driver, 5).until(
                 EC.presence_of_element_located((By.NAME, "login"))
             )
-            passwrod_input = WebDriverWait(driver,5).until(
-                EC.presence_of_element_located((By.NAME,"password"))
+            password_input = WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.NAME, "password"))
             )
+            
+            # Input the credentials into the login form
             login_input.send_keys(login_entry.get())
-            passwrod_input.send_keys(password_entry.get())
+            password_input.send_keys(password_entry.get())
         except Exception as e:
             print(e)
 
