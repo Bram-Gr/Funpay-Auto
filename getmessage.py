@@ -1,6 +1,6 @@
 import requests
 
-url = "https://api.firstmail.ltd/v1/market/get/message?username=kaqqhweu%40derrenmail.com&password=gucvbvjjY%214276"
+url = "https://api.firstmail.ltd/v1/market/get/message?username=thomasvanhorn2008@neuroparamail.ru&password=kdjshAd!28325"
 
 headers = {
     "accept": "application/json",

@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 import csv
 import os
 import undetected_chromedriver as uc
+import requests
 
 # Selenium setup
 cService = webdriver.ChromeService(executable_path="E:\\chromedriver-win64\\chromedriver.exe")
@@ -26,22 +27,52 @@ accounts_to_emails = {}
 
 import requests
 
-def get_firstmail_code(email, password):
-    api_url = f"https://api.firstmail.ltd/v1/market/get/message?username={email}&password={password}"
+import re
 
+import requests
+import re
+
+
+def get_firstmail_code(email_login_value, email_password_value):
+    # Construct the API URL
+    url = f"https://api.firstmail.ltd/v1/market/get/message?username={email_login_value}&password={email_password_value}"
+
+    # Define the headers with the API key
     headers = {
         "accept": "application/json",
         "X-API-KEY": "c5816a11-b9eb-4325-91d4-94f3179a4ea3"
     }
 
-    response = requests.get(api_url, headers=headers)
-    if response.status_code == 200:
-        data = response.json()
-        # Assuming the code is inside 'data' (adjust based on actual API response)
-        return data.get('code')
-    else:
-        print(f"Failed to retrieve the code. Status code: {response.status_code}")
+    try:
+        # Make the request to the Firstmail API
+        response = requests.get(url, headers=headers)
+
+        # Check if the request was successful
+        if response.status_code == 200:
+            email_data = response.json()  # Parse the JSON response
+
+            # Check if the email has a message and the subject contains the code
+            if email_data.get("has_message"):
+                subject = email_data.get("subject", "")
+
+                # Use regex to extract the 6-digit code from the subject
+                match = re.search(r'\d{6}', subject)
+                if match:
+                    return match.group(0)  # Return the code
+                else:
+                    print("Error: No code found in the subject.")
+                    return None
+            else:
+                print("Error: No message found.")
+                return None
+        else:
+            print(f"Error: Failed to retrieve data. Status code: {response.status_code}")
+            return None
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error: An exception occurred while making the API request: {e}")
         return None
+
 
 
 
@@ -90,8 +121,7 @@ def associate_email(website, login, password, account_code, account_login, curre
     print(f"Associated {login} with account {account_code}")
     save_accounts_to_csv()  # Save to CSV after association
 
-# Show the account information form with pre-filled data if available
-# Show the account information form with pre-filled data if available
+
 # Show the account information form with pre-filled data if available
 def show_email_association_form(account_code):
     email_window = Toplevel(root)
@@ -128,7 +158,7 @@ def show_email_association_form(account_code):
     current_password.insert(0, existing_data.get('current_password', '')) 
 
 
-# Function that changes account password
+    # Function that changes account password
     def change_account_password():
         global driver
         driver.get("https://playvalorant.com/en-gb/")
@@ -176,38 +206,43 @@ def show_email_association_form(account_code):
             riotinstructions = Toplevel(root)
             riotinstructions.title("Instructions")
             ttk.Label(riotinstructions, text="Please complete the captcha manually and then press the button below").grid(row=0, column=0, padx=5, pady=5)
-            riotlogin_button = ttk.Button(riotinstructions, text="Captcha completed", command=continue_change_password).grid(row=1, column=1, padx=5, pady=5)
+            riotlogin_button = ttk.Button(riotinstructions, text="Captcha completed", command=lambda: continue_change_password(email_login.get(), email_password.get())).grid(row=1, column=1, padx=5, pady=5)
 
         except TimeoutException:
             print("Element not found within the time limit.")
         except Exception as e:
             print(f"An error occurred: {e}")
 
-    def continue_change_password(email, email_password):
+    def continue_change_password(email_login_value, email_password_value):
         global driver
-        
+
         try:
-            # Press the settings button
             settings_button = WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, '[data-testid="riotbar:account:link-settings"]'))
-            )
+                )
             driver.execute_script("arguments[0].click();", settings_button)
             print("Clicked Settings button.")
-
             # Retrieve the login code from the Firstmail API
-            login_code = get_firstmail_code(email, email_password)
+            sleep(7)
+            login_code = get_firstmail_code(email_login_value, email_password_value)
             if login_code:
                 print(f"Login code retrieved: {login_code}")
-                # You can use the login code to proceed with the next steps
-                # e.g., enter it into an input field and continue the password change process
+                
+                # Simulate typing the code into the input fields
+                first_input_field = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'div.sc-ktEKTO.sc-jegxcv.ivhuoK.dUizNf.field input'))
+                )
+                first_input_field.send_keys(login_code)
+                print(f"Entered login code: {login_code}")
             else:
                 print("Failed to retrieve the login code.")
 
         except TimeoutException:
-            print("Settings button not found within the time limit.")
+            print("Input field not found within the time limit.")
         except Exception as e:
             print(f"An error occurred: {e}")
-    #Button for changing password
+
+
     ttk.Button(email_window, text="Change account password",command=change_account_password).grid(row=2, column=2, padx=5)
 
     # Function to toggle password visibility
