@@ -16,6 +16,8 @@ import undetected_chromedriver as uc
 import requests
 import random
 import string
+import requests
+import re
 
 # Selenium setup
 cService = webdriver.ChromeService(executable_path="E:\\chromedriver-win64\\chromedriver.exe")
@@ -26,14 +28,6 @@ csv_file = "accounts_emails.csv"
 
 # In-memory storage for account-email associations (loaded from CSV)
 accounts_to_emails = {}
-
-import requests
-
-import re
-
-import requests
-import re
-
 
 def get_firstmail_code(email_login_value, email_password_value):
     # Construct the API URL
