@@ -14,6 +14,8 @@ import csv
 import os
 import undetected_chromedriver as uc
 import requests
+import random
+import string
 
 # Selenium setup
 cService = webdriver.ChromeService(executable_path="E:\\chromedriver-win64\\chromedriver.exe")
@@ -123,7 +125,7 @@ def associate_email(website, login, password, account_code, account_login, curre
 
 
 # Show the account information form with pre-filled data if available
-def show_email_association_form(account_code):
+def show_email_association_form(account_code, link):
     email_window = Toplevel(root)
     email_window.title(f"{account_code} Account Info")
 
@@ -234,6 +236,63 @@ def show_email_association_form(account_code):
                 )
                 first_input_field.send_keys(login_code)
                 print(f"Entered login code: {login_code}")
+                submit_button = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, '[data-testid="btn-mfa-submit"]'))
+                )
+                driver.execute_script("arguments[0].click();", submit_button)
+                print("Clicked submit button.")
+                
+                #Finds and enters the current password
+                current_pass_change_element = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, '[data-testid="password-card__currentPassword"]'))
+                )
+                driver.execute_script("arguments[0].focus();", current_pass_change_element)
+                current_pass_change_element.send_keys(current_password.get())
+                
+                pass_holder = pass_gen(12)
+                print(pass_holder)
+                #Finds and enters a random password into to "new password" field
+                new_pass_element = WebDriverWait(driver,10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, '[data-testid="password-card__newPassword"]'))
+                )
+                driver.execute_script("arguments[0].focus();",new_pass_element)
+                new_pass_element.send_keys(pass_holder)
+
+                #Second new pass field
+                confirm_new_pass_element = WebDriverWait(driver,10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, '[data-testid="password-card__confirmNewPassword"]'))
+                )
+                driver.execute_script("arguments[0].focus();", confirm_new_pass_element)
+                confirm_new_pass_element.send_keys(pass_holder)
+                
+                #Saves pass
+                apply_new_pass = WebDriverWait(driver,10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, '[data-testid="password-card__submit-btn"]'))
+                )
+                driver.execute_script("arguments[0].click();", apply_new_pass)
+                
+                current_password.delete(0, END)
+                current_password.insert(0, pass_holder)
+                associate_email(
+                    email_website.get(), email_login.get(), email_password.get(), account_code, account_login.get(), current_password.get())
+                sleep(5)
+
+                driver.get(link)
+                login_password_form = WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((By.CLASS_NAME, "form-control.textarea-lot-secrets"))
+                )
+                login_password_form.send_keys(f"Login:{account_login.get()} Password:{current_password.get()} Enjoy your games! And please leave a review <3")
+                checkbox = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, "label:has(input[name='active'])"))
+                )
+                driver.execute_script("arguments[0].click();", checkbox)
+                sleep(4)
+                save_button = WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((By.CLASS_NAME, "btn.btn-primary.btn-block.js-btn-save"))
+                )
+                driver.execute_script("arguments[0].click();", save_button)
+                sleep(4)
+                load_existing_offers()
             else:
                 print("Failed to retrieve the login code.")
 
@@ -264,6 +323,29 @@ def show_email_association_form(account_code):
         email_website.get(), email_login.get(), email_password.get(), account_code, account_login.get(), current_password.get()))
     associate_btn.grid(row=6, column=0, columnspan=2, pady=10)
 
+def pass_gen(length=12):
+    # Define the character sets for password generation
+    letters = string.ascii_letters  # a-z, A-Z
+    digits = string.digits          # 0-9
+    special_chars = string.punctuation  # Special characters like !, @, #
+
+    # Ensure the password contains at least one character from each category
+    all_characters = letters + digits + special_chars
+    
+    # Generate a random password
+    password = [
+        random.choice(letters),
+        random.choice(digits),
+        random.choice(special_chars)
+    ]
+    
+    # Fill the rest of the password with random characters from all categories
+    password += random.choices(all_characters, k=length - len(password))
+    
+    # Shuffle the result to prevent predictable patterns
+    random.shuffle(password)
+    
+    return ''.join(password)
 
 # Extract account code from description text (between [ and ])
 def extract_account_code(desc_text):
@@ -276,7 +358,7 @@ def open_offer_in_browser(link, desc_text):
     account_code = extract_account_code(desc_text)
     print(f"Opening offer with account code: {account_code}")
     driver.get(link)
-    show_email_association_form(account_code)
+    show_email_association_form(account_code,link)
 
 # Load existing offers from the website
 def load_existing_offers():
@@ -309,10 +391,6 @@ def load_existing_offers():
 def login_button_click():
     global driver
     options = uc.ChromeOptions()
-    
-    # Set the path to your default Chrome profile
-    #options.add_argument("--user-data-dir=C:/Users/klp/AppData/Local/Google/Chrome/User Data")
-    #options.add_argument("--profile-directory=Default")  # Use "Profile X" if you have multiple profiles
 
 
     # Initialize the undetected Chrome driver with options
