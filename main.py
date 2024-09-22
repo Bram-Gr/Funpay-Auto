@@ -167,7 +167,7 @@ def show_email_association_form(account_code, link):
             driver.execute_script("arguments[0].click();", play_now_button)
             print("Clicked PLAY NOW button.")
             
-            sleep(2)
+            sleep(0.4)
 
             # Step 2: Wait for and click the second "Sign In" button (assuming there are two)
             sign_in_buttons = WebDriverWait(driver, 10).until(
@@ -219,7 +219,7 @@ def show_email_association_form(account_code, link):
             driver.execute_script("arguments[0].click();", settings_button)
             print("Clicked Settings button.")
             # Retrieve the login code from the Firstmail API
-            sleep(7)
+            sleep(3)
             login_code = get_firstmail_code(email_login_value, email_password_value)
             if login_code:
                 print(f"Login code retrieved: {login_code}")
@@ -269,7 +269,7 @@ def show_email_association_form(account_code, link):
                 current_password.insert(0, pass_holder)
                 associate_email(
                     email_website.get(), email_login.get(), email_password.get(), account_code, account_login.get(), current_password.get())
-                sleep(5)
+                sleep(0.1)
 
                 driver.get(link)
                 login_password_form = WebDriverWait(driver, 5).until(
@@ -280,12 +280,12 @@ def show_email_association_form(account_code, link):
                     EC.element_to_be_clickable((By.CSS_SELECTOR, "label:has(input[name='active'])"))
                 )
                 driver.execute_script("arguments[0].click();", checkbox)
-                sleep(4)
+                sleep(0.1)
                 save_button = WebDriverWait(driver, 5).until(
                     EC.presence_of_element_located((By.CLASS_NAME, "btn.btn-primary.btn-block.js-btn-save"))
                 )
                 driver.execute_script("arguments[0].click();", save_button)
-                sleep(4)
+                sleep(0.1)
                 load_existing_offers()
             else:
                 print("Failed to retrieve the login code.")
@@ -358,28 +358,46 @@ def open_offer_in_browser(link, desc_text):
 def load_existing_offers():
     global driver
     driver.get("https://funpay.com/en/lots/612/trade")
-    sleep(3)  # Wait for the page to load
+    sleep(0.5)  # Wait for the page to load
     page_source = driver.page_source
     soup = BeautifulSoup(page_source, 'html.parser')
     
     inactive_offers = []
-    
+    active_offers = []
+
     # Find inactive offers (those with amount = 0)
     for offer in soup.find_all('a', href=True, class_="tc-item"):
         offer_amount = offer.find(class_='tc-amount hidden-xxs').get_text(strip=True)
         if int(offer_amount) == 0:
-            desc_text = offer.find(class_="tc-desc-text").get_text(strip=True)[:30]  # Get first 30 characters
+            desc_text = offer.find(class_="tc-desc-text").get_text(strip=True)[:35]  # Get first 35 characters
             offer_link = offer['href']
             inactive_offers.append((desc_text, offer_link))
+
+    # Find active offers
+    for offer in soup.find_all('a', href=True, class_="tc-item"):
+        offer_amount = offer.find(class_='tc-amount hidden-xxs').get_text(strip=True)
+        if int(offer_amount) == 1:
+            desc_text = offer.find(class_="tc-desc-text").get_text(strip=True)[:35]  # Get first 35 characters
+            offer_link = offer['href']
+            active_offers.append((desc_text, offer_link))
     
     # Clear previous content in the frame
     for widget in accounts_frameX.winfo_children():
         widget.destroy()
     
+    # Add labels for inactive and active offers
+    ttk.Label(accounts_frameX, text="Inactive Offers").grid(column=0, row=0, padx=2, pady=2)
+    ttk.Label(accounts_frameX, text="Active Offers").grid(column=1, row=0, padx=2, pady=2)
+    
     # Create buttons for each inactive offer
-    for desc_text, link in inactive_offers[:30]:  # Show only first 30 offers
+    for idx, (desc_text, link) in enumerate(inactive_offers[:30], start=1):  # Show only first 30 offers
         btn = ttk.Button(accounts_frameX, text=desc_text, command=lambda url=link, desc=desc_text: open_offer_in_browser(url, desc))
-        btn.pack(pady=2)
+        btn.grid(column=0, row=idx, padx=2, pady=2)
+    
+    # Create buttons for each active offer
+    for idx, (desc_text, link) in enumerate(active_offers[:30], start=1):  # Show only first 30 offers
+        btn = ttk.Button(accounts_frameX, text=desc_text, command=lambda url=link, desc=desc_text: open_offer_in_browser(url, desc))
+        btn.grid(column=1, row=idx, padx=2, pady=2)
 
 # Start Selenium and handle login with default Chrome profile
 def login_button_click():
@@ -474,7 +492,7 @@ def clear_password_text(event):
 
 root = tkinter.Tk() 
 root.title("Funpay Automation") 
-root.geometry("600x250")  
+root.geometry("700x350")  
 
 # Main frame for the login page
 mainframe = ttk.Frame(root)  
