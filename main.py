@@ -7,6 +7,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import TimeoutException
 import pickle
 from time import sleep
 from bs4 import BeautifulSoup
@@ -18,6 +19,7 @@ import random
 import string
 import requests
 import re
+import json
 
 # Selenium setup
 cService = webdriver.ChromeService(executable_path="E:\\chromedriver-win64\\chromedriver.exe")
@@ -29,6 +31,7 @@ csv_file = "accounts_emails.csv"
 # In-memory storage for account-email associations (loaded from CSV)
 accounts_to_emails = {}
 
+# Function to retrieve the 6-digit code from the email subject
 def get_firstmail_code(email_login_value, email_password_value):
     # Construct the API URL
     url = f"https://api.firstmail.ltd/v1/market/get/message?username={email_login_value}&password={email_password_value}"
@@ -69,9 +72,6 @@ def get_firstmail_code(email_login_value, email_password_value):
         print(f"Error: An exception occurred while making the API request: {e}")
         return None
 
-
-
-
 # Load existing account-email associations from CSV
 def load_accounts_from_csv():
     global accounts_to_emails
@@ -86,7 +86,6 @@ def load_accounts_from_csv():
                     'account_login': row.get('account_login', ''),  # New field with default empty string if missing
                     'current_password': row.get('current_password', '')  # New field with default empty string if missing
                 }
-
 
 # Save account-email associations to CSV
 def save_accounts_to_csv():
@@ -116,7 +115,6 @@ def associate_email(website, login, password, account_code, account_login, curre
     }
     print(f"Associated {login} with account {account_code}")
     save_accounts_to_csv()  # Save to CSV after association
-
 
 # Show the account information form with pre-filled data if available
 def show_email_association_form(account_code, link):
@@ -317,6 +315,7 @@ def show_email_association_form(account_code, link):
         email_website.get(), email_login.get(), email_password.get(), account_code, account_login.get(), current_password.get()))
     associate_btn.grid(row=6, column=0, columnspan=2, pady=10)
 
+# Generate a random password with a specified length    
 def pass_gen(length=12):
     # Define the character sets for password generation
     letters = string.ascii_letters  # a-z, A-Z
@@ -399,7 +398,7 @@ def load_existing_offers():
         btn = ttk.Button(accounts_frameX, text=desc_text, command=lambda url=link, desc=desc_text: open_offer_in_browser(url, desc))
         btn.grid(column=1, row=idx, padx=2, pady=2)
 
-# Start Selenium and handle login with default Chrome profile
+# Start Selenium and handle login process
 def login_button_click():
     global driver
     options = uc.ChromeOptions()
@@ -407,19 +406,41 @@ def login_button_click():
 
     # Initialize the undetected Chrome driver with options
     driver = uc.Chrome(options=options)
+    if remember_me_var.get() == True:
+        
+        driver.get("https://funpay.com/en/")
     
-    driver.get("https://funpay.com/en/")
-    
-    # Load cookies if available
-    load_cookies(driver)
-    
-    # Try navigating to the site again to check if logged in
-    driver.get("https://funpay.com/en/")
-    a = check_logged_in()
-    
-    if a == True:
-        mainframe.place_forget()
-        frame4.place(relx=0.5, rely=0.5, anchor=CENTER)
+        # Load cookies if available
+        load_cookies(driver)
+        
+        # Try navigating to the site again to check if logged in
+        driver.get("https://funpay.com/en/")
+        a = check_logged_in()
+
+        if a == True:
+            #If logged in, show the accounts section, save cookies and credentails
+            mainframe.place_forget()
+            frame4.place(relx=0.5, rely=0.5, anchor=CENTER)
+            save_cookies(driver)
+            save_credentials(login_entry.get(), password_entry.get())
+        else:
+            driver.get("https://funpay.com/en/account/login")
+            try:
+                mainframe.place_forget()
+                instructionsframe.place(relx=0.5, rely=0.5, anchor=CENTER)
+                
+                login_input = WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((By.NAME, "login"))
+                )
+                password_input = WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((By.NAME, "password"))
+                )
+                
+                # Input the credentials into the login form
+                login_input.send_keys(login_entry.get())
+                password_input.send_keys(password_entry.get())
+            except Exception as e:
+                print(e)
     else:
         driver.get("https://funpay.com/en/account/login")
         try:
@@ -465,6 +486,23 @@ def load_cookies(driver, path='cookies.pkl'):
         for cookie in cookies:
             driver.add_cookie(cookie)
 
+#Save and load credentials in mainframe
+def save_credentials(login, password):
+    credentials = {
+        "login": login,
+        "password": password
+    }
+    with open("credentials.json", "w") as file:
+        json.dump(credentials, file)
+
+def load_credentials():
+    try:
+        with open("credentials.json", "r") as file:
+            credentials = json.load(file)
+            return credentials["login"], credentials["password"]
+    except FileNotFoundError:
+        return None, None
+
 # Login successful handler
 def successful_login_button():
     global driver
@@ -472,12 +510,21 @@ def successful_login_button():
         WebDriverWait(driver,5).until(
             EC.presence_of_element_located((By.CLASS_NAME, "user-link-name"))
         )
+
         driver.get("https://funpay.com/en/")
+
         save_cookies(driver)
         instructionsframe.place_forget()
         frame3.place(relx=0.5, rely=0.5, anchor=CENTER)
         frame3.place_forget()
         frame4.place(relx=0.5, rely=0.5, anchor=CENTER)
+
+        # Save credentials if remember_me is checked
+        if remember_me_var.get():
+            save_credentials(login_entry.get(), password_entry.get())
+
+        return True
+    
     except Exception as e:
         print(e)
 
@@ -487,7 +534,7 @@ def clear_default_text(event):
         login_entry.delete(0, END)
 
 def clear_password_text(event):
-    if password_entry.get() == "23423":
+    if password_entry.get() == "Password":
         password_entry.delete(0, END)
 
 root = tkinter.Tk() 
@@ -517,26 +564,62 @@ accounts_frameX_label.grid(row=0, column=2, pady=10)
 
 # Instructions label
 instructions = ttk.Label(instructionsframe, text="Please complete the captcha manually", font=("Arial", 15))
-instructions.grid(row=0, column=2, pady=10)
+instructions.grid(row=0, column=0, pady=10)
+captcha_completed_button = ttk.Button(instructionsframe, text="Captcha completed", command=successful_login_button)
+
+login,password = load_credentials()
+
 
 # Username and password entries
 login_entry = ttk.Entry(mainframe)
-login_entry.insert(0, "Username")
+if login:
+    login_entry.insert(0, login)
+else:
+    login_entry.insert(0, "Username")
 login_entry.bind("<FocusIn>", clear_default_text)
 login_entry.grid(row=1, column=2, padx=5, pady=5)
 
 password_entry = ttk.Entry(mainframe, show="*")
-password_entry.insert(0, "23423")
+if password:
+    password_entry.insert(0, password)
+else:
+    password_entry.insert(0, "Password")
 password_entry.bind("<FocusIn>", clear_password_text)
 password_entry.grid(row=2, column=2, padx=5, pady=5)
 
+#Remember me checkbox
+remember_me_var = tkinter.BooleanVar()
+remember_me = ttk.Checkbutton(mainframe, text="Remember me", variable=remember_me_var)
+remember_me.grid(row=4, column=2, pady=10)
+
+
+#Saves the checkbox state
+def save_remember_me_state(*args):
+    with open('remember_me_state.pkl', 'wb') as f:
+        pickle.dump(remember_me_var.get(), f)
+
+remember_me_var.trace_add('write', save_remember_me_state)
+#Loads the checkbox state
+def load_remember_me_state():
+    try:
+        with open('remember_me_state.pkl', 'rb') as f:
+            state = pickle.load(f)
+            remember_me_var.set(state)
+    except FileNotFoundError:
+        remember_me_var.set(False)  # Default state if no file is found
+
+load_remember_me_state()
+
 # Login button
-login_button = ttk.Button(mainframe, text="Login", command=login_button_click)
+login_button = ttk.Button(mainframe, text="Login", command=login_button_click, width=10)
 login_button.grid(row=3, column=2, pady=10)
 
-sv_ttk.set_theme("dark")
 mainframe.place(relx=0.5, rely=0.5, anchor=CENTER)
 
+sv_ttk.set_theme("dark")
+# Button to toggle the theme
+button = ttk.Button(root, text="Toggle theme", command=sv_ttk.toggle_theme)
+button.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
 load_accounts_from_csv()  # Load accounts from CSV on startup
 
 root.mainloop()
