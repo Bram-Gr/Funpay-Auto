@@ -133,14 +133,13 @@ def load_accounts_from_csv():
                     'account_login': row.get('account_login', ''),
                     'current_password': row.get('current_password', ''),
                     'tracker_link': row.get('tracker_link', ''),
-                    'rank': row.get('rank', 'N/A'),
-                    'timer': row.get('timer', '')
+                    'rank': row.get('rank', 'N/A')  
                 }
 
 # Save account-email associations to CSV
 def save_accounts_to_csv():
     with open(csv_file, mode='w', newline='') as file:
-        fieldnames = ['account_code', 'website', 'login', 'password', 'account_login', 'current_password', 'tracker_link', 'rank','timer']  
+        fieldnames = ['account_code', 'website', 'login', 'password', 'account_login', 'current_password', 'tracker_link', 'rank']  
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         for account_code, email_data in accounts_to_emails.items():
@@ -152,13 +151,12 @@ def save_accounts_to_csv():
                 'account_login': email_data.get('account_login', ''), 
                 'current_password': email_data.get('current_password', ''),
                 'tracker_link': email_data.get('tracker_link', ''),
-                'rank': email_data.get('rank', 'N/A'),
-                'timer': email_data.get('timer', '')
+                'rank': email_data.get('rank', 'N/A')
             })
 
 
 # Call this function after associating an email and account info
-def associate_email(website, login, password, account_code, account_login, current_password,tracker_link,timer):
+def associate_email(website, login, password, account_code, account_login, current_password,tracker_link):
     accounts_to_emails[account_code] = {
         'website': website,
         'login': login,
@@ -166,14 +164,13 @@ def associate_email(website, login, password, account_code, account_login, curre
         'account_login': account_login,  
         'current_password': current_password,
         'tracker_link': tracker_link,
-        'rank': 'N/A',
-        'timer': timer
+        'rank': 'N/A'
     }
     print(f"Associated {login} with account {account_code}")
     save_accounts_to_csv()  
 
 # Show the account information form with pre-filled data if available
-def show_email_association_form(account_code, link,timer):
+def show_email_association_form(account_code, link):
     email_window = Toplevel(root)
     email_window.title(f"{account_code} Account Info")
 
@@ -215,12 +212,6 @@ def show_email_association_form(account_code, link,timer):
 
     rank = existing_data.get('rank', 'N/A')
     ttk.Label(email_window, text=f"Current Rank: {rank}").grid(row=6, column=0, padx=5, pady=5)
-
-    ttk.Label(email_window, text="Timer:").grid(row=6, column=1, padx=5, pady=5)
-    timer = ttk.Entry(email_window, width=10, font=("Arial", 10))
-    timer.grid(row=6, column=2, padx=5, pady=5)
-    timer.insert(0, str(existing_data.get('timer', '')))
-
     #ttk.Button(email_window, text="Update Rank", command=lambda: check_rank(account_code)).grid(row=5, column=1, padx=5, pady=5)
 
     # Function that changes account password
@@ -278,7 +269,7 @@ def show_email_association_form(account_code, link,timer):
         except Exception as e:
             print(f"An error occurred: {e}")
 
-    def continue_change_password(email_login_value, email_password_value, timer):
+    def continue_change_password(email_login_value, email_password_value):
         global driver
 
         try:
@@ -337,7 +328,7 @@ def show_email_association_form(account_code, link,timer):
                 current_password.insert(0, pass_holder)
 
                 associate_email(
-                    email_website.get(), email_login.get(), email_password.get(), account_code, account_login.get(), current_password.get(),tracker_link.get(),timer.get())
+                    email_website.get(), email_login.get(), email_password.get(), account_code, account_login.get(), current_password.get(),tracker_link.get())
                 sleep(0.1)
                 
                 driver.delete_all_cookies()
@@ -385,7 +376,7 @@ def show_email_association_form(account_code, link,timer):
                 )
                 driver.execute_script("arguments[0].click();", save_button)
                 sleep(0.1)
-                load_existing_offers(timer)
+                load_existing_offers()
             else:
 
                 driver.delete_all_cookies()
@@ -414,7 +405,7 @@ def show_email_association_form(account_code, link,timer):
     show_password_checkbox.grid(row=7, column=1, padx=5, pady=5)
 
     associate_btn = ttk.Button(email_window, text="Associate", command=lambda: associate_email(
-        email_website.get(), email_login.get(), email_password.get(), account_code, account_login.get(), current_password.get(), tracker_link.get(), timer.get()))
+        email_website.get(), email_login.get(), email_password.get(), account_code, account_login.get(), current_password.get(),tracker_link.get()))
     associate_btn.grid(row=6, column=3, columnspan=2, pady=10)
 
 # Generate a random password with a specified length    
@@ -445,14 +436,14 @@ def extract_account_code(desc_text):
     return desc_text[start:end]
 
 # Open the offer in the browser and show email association form
-def open_offer_in_browser(link, desc_text,timer):
+def open_offer_in_browser(link, desc_text):
     account_code = extract_account_code(desc_text)
     print(f"Opening offer with account code: {account_code}")
     driver.get(link)
-    show_email_association_form(account_code,link,timer)
+    show_email_association_form(account_code,link)
 
 # Load existing offers from the website
-def load_existing_offers(timer=None):
+def load_existing_offers():
     global driver
     driver.get("https://funpay.com/en/lots/612/trade")
     sleep(0.5)  
@@ -485,12 +476,12 @@ def load_existing_offers(timer=None):
     
     
     for idx, (desc_text, link) in enumerate(inactive_offers[:30], start=1):  
-        btn = ttk.Button(accounts_frameX, text=desc_text, command=lambda url=link, desc=desc_text: open_offer_in_browser(url, desc, timer))
+        btn = ttk.Button(accounts_frameX, text=desc_text, command=lambda url=link, desc=desc_text: open_offer_in_browser(url, desc))
         btn.grid(column=0, row=idx, padx=2, pady=2)
     
     
     for idx, (desc_text, link) in enumerate(active_offers[:30], start=1):  
-        btn = ttk.Button(accounts_frameX, text=desc_text, command=lambda url=link, desc=desc_text: open_offer_in_browser(url, desc, timer))
+        btn = ttk.Button(accounts_frameX, text=desc_text, command=lambda url=link, desc=desc_text: open_offer_in_browser(url, desc))
         btn.grid(column=1, row=idx, padx=2, pady=2)
 
 # Start Selenium and handle login process
